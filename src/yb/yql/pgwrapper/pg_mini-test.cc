@@ -71,6 +71,7 @@ using namespace std::literals;
 DECLARE_bool(TEST_force_master_leader_resolution);
 DECLARE_bool(enable_automatic_tablet_splitting);
 DECLARE_bool(enable_pg_savepoints);
+DECLARE_bool(enable_rpc_dumps);
 DECLARE_bool(enable_tracing);
 DECLARE_bool(flush_rocksdb_on_shutdown);
 DECLARE_bool(enable_wait_queues);
@@ -454,6 +455,7 @@ TEST_F(PgMiniTest, Simple) {
 
 TEST_F(PgMiniTest, Tracing) {
   ANNOTATE_UNPROTECTED_WRITE(FLAGS_enable_tracing) = false;
+  ANNOTATE_UNPROTECTED_WRITE(FLAGS_enable_rpc_dumps) = true;
   auto conn = ASSERT_RESULT(Connect());
 
   ASSERT_OK(conn.Execute("CREATE TABLE t (key INT PRIMARY KEY, value TEXT, value2 TEXT)"));

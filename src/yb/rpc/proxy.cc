@@ -57,12 +57,15 @@
 #include "yb/util/result.h"
 #include "yb/util/status.h"
 #include "yb/util/flags.h"
+#include "yb/util/uuid.h"
 
 DEFINE_UNKNOWN_int32(num_connections_to_server, 8,
              "Number of underlying connections to each server");
 
 DEFINE_UNKNOWN_int32(proxy_resolve_cache_ms, 5000,
              "Time in milliseconds to cache resolution result in Proxy");
+
+DEFINE_RUNTIME_bool(enable_rpc_dumps, false, "Enable dumps of proxy RPC request and responses");
 
 using namespace std::literals;
 
@@ -229,6 +232,22 @@ void Proxy::AsyncRemoteCall(
   }
 }
 
+
+ResponseCallback Proxy::DumpRPCs(const RemoteMethod* method, AnyMessageConstPtr req, AnyMessagePtr resp, ResponseCallback callback) const {
+  if (FLAGS_enable_rpc_dumps) {
+    auto request_uuid = Uuid::Generate();
+    auto request_debug_str = req.is_lightweight()? req.lightweight()->ShortDebugString() : req.protobuf()->ShortDebugString();
+    LOG(INFO) << "[PROXY REQUEST] " << request_uuid.ToString() << " " <<  method->ToString() << " " << request_debug_str;
+
+    callback = [callback = std::move(callback), method, resp, request_uuid] {
+      auto response_debug_str = resp.is_lightweight()? resp.lightweight()->ShortDebugString() : resp.protobuf()->ShortDebugString();
+      LOG(INFO) << "[PROXY RESPONSE] " << request_uuid.ToString() << " " << method->ToString() << " " << response_debug_str;
+      callback();
+    };
+  }
+  return callback;
+}
+
 void Proxy::DoAsyncRequest(const RemoteMethod* method,
                            std::shared_ptr<const OutboundMethodMetrics> method_metrics,
                            AnyMessageConstPtr req,
@@ -237,6 +256,8 @@ void Proxy::DoAsyncRequest(const RemoteMethod* method,
                            ResponseCallback callback,
                            const bool force_run_callback_on_reactor) {
   CHECK(controller->call_.get() == nullptr) << "Controller should be reset";
+
+  callback = DumpRPCs(method, req, resp, std::move(callback));
 
   if (call_local_service_) {
     AsyncLocalCall(

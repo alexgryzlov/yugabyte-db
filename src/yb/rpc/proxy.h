@@ -162,6 +162,8 @@ class Proxy {
   ThreadPool *GetCallbackThreadPool(
       bool force_run_callback_on_reactor, InvokeCallbackMode invoke_callback_mode);
 
+  ResponseCallback DumpRPCs(const RemoteMethod* method, AnyMessageConstPtr req, AnyMessagePtr resp, ResponseCallback callback) const;
+
   // Implements logic for AsyncRequest function, but allows to force to run callback on
   // reactor thread. This is an optimisation used by SyncRequest function.
   void DoAsyncRequest(const RemoteMethod* method,
